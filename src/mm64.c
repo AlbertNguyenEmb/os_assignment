@@ -70,6 +70,15 @@ int init_pte(addr_t *pte,
  */
 int get_pd_from_address(addr_t addr, addr_t* pgd, addr_t* p4d, addr_t* pud, addr_t* pmd, addr_t* pt)
 {
+   addr_t top_bits;
+
+  if (pgd == NULL || p4d == NULL || pud == NULL ||
+      pmd == NULL || pt == NULL)
+    return -1;
+
+  top_bits = addr >> 57;
+  if (top_bits != 0 && top_bits != 0x7f)
+    return -1;
 	/* Extract page direactories */
 	*pgd = (addr&PAGING64_ADDR_PGD_MASK)>>PAGING64_ADDR_PGD_LOBIT;
 	*p4d = (addr&PAGING64_ADDR_P4D_MASK)>>PAGING64_ADDR_P4D_LOBIT;
@@ -108,20 +117,24 @@ int get_pd_from_pagenum(addr_t pgn, addr_t* pgd, addr_t* p4d, addr_t* pud, addr_
 int pte_set_swap(struct pcb_t *caller, addr_t pgn, int swptyp, addr_t swpoff)
 {
   struct krnl_t *krnl = caller->krnl;
-
+  struct mm_struct *mm = caller->mm;
   addr_t *pte;
   addr_t pgd=0;
   addr_t p4d=0;
   addr_t pud=0;
   addr_t pmd=0;
   addr_t pt=0;
-	
+	if (caller == NULL || caller->mm == NULL)
+    return -1;
+
+  mm = caller->mm;
   // dummy pte alloc to avoid runtime error
   pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+  
   //... krnl->mm->pgd
   //... krnl->mm->pt
   //pte = &krnl->mm->pt;
@@ -161,6 +174,66 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+    {
+    addr_t *p4d_tbl;
+    addr_t *pud_tbl;
+    addr_t *pmd_tbl;
+    addr_t *pt_tbl;
+
+    if (mm->pgd == NULL)
+    {
+      mm->pgd = calloc(512, sizeof(addr_t));
+    }
+
+    if (mm->pgd == NULL)
+      return -1;
+
+    if (mm->pgd[pgd] == 0)
+    {
+      p4d_tbl = calloc(512, sizeof(addr_t));
+      if (p4d_tbl == NULL)
+        return -1;
+
+      mm->pgd[pgd] = (addr_t)p4d_tbl;
+    }
+
+    p4d_tbl = (addr_t *)mm->pgd[pgd];
+
+    if (p4d_tbl[p4d] == 0)
+    {
+      pud_tbl = calloc(512, sizeof(addr_t));
+      if (pud_tbl == NULL)
+        return -1;
+
+      p4d_tbl[p4d] = (addr_t)pud_tbl;
+    }
+
+    pud_tbl = (addr_t *)p4d_tbl[p4d];
+
+    if (pud_tbl[pud] == 0)
+    {
+      pmd_tbl = calloc(512, sizeof(addr_t));
+      if (pmd_tbl == NULL)
+        return -1;
+
+      pud_tbl[pud] = (addr_t)pmd_tbl;
+    }
+
+    pmd_tbl = (addr_t *)pud_tbl[pud];
+
+    if (pmd_tbl[pmd] == 0)
+    {
+      pt_tbl = calloc(512, sizeof(addr_t));
+      if (pt_tbl == NULL)
+        return -1;
+
+      pmd_tbl[pmd] = (addr_t)pt_tbl;
+    }
+
+    pt_tbl = (addr_t *)pmd_tbl[pmd];
+
+    pte = &pt_tbl[pt];
+  }
   //... krnl->mm->pgd
   //... krnl->mm->pt
   //pte = &krnl->mm->pt;
@@ -200,6 +273,32 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+
+  if (mm == NULL || mm->pgd == NULL)
+    return 0;
+
+  if (mm->pgd[pgd] == 0)
+    return 0;
+
+  addr_t *p4d_tbl = (addr_t *)mm->pgd[pgd];
+
+  if (p4d_tbl[p4d] == 0)
+    return 0;
+
+  addr_t *pud_tbl = (addr_t *)p4d_tbl[p4d];
+
+  if (pud_tbl[pud] == 0)
+    return 0;
+
+  addr_t *pmd_tbl = (addr_t *)pud_tbl[pud];
+
+  if (pmd_tbl[pmd] == 0)
+    return 0;
+
+  addr_t *pt_tbl = (addr_t *)pmd_tbl[pmd];
+
+  pte = &pt_tbl[pt];
+
   //... krnl->mm->pgd
   //... krnl->mm->pt
   //pte = &krnl->mm->pt;
@@ -207,7 +306,7 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   pte = &krnl->mm->pgd[pgn];
 #endif
 
-  return (addr_t) &pte;
+  return *pte;
 }
 
 /* Set PTE page table entry
@@ -232,6 +331,65 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+
+  if (mm == NULL)
+    return -1;
+
+  if (mm->pgd == NULL)
+  {
+    mm->pgd = calloc(512, sizeof(addr_t));
+  }
+
+  if (mm->pgd == NULL)
+    return -1;
+
+  if (mm->pgd[pgd] == 0)
+  {
+    pte = calloc(512, sizeof(addr_t));
+    if (pte == NULL)
+      return -1;
+
+    mm->pgd[pgd] = (addr_t)pte;
+  }
+
+  addr_t *p4d_tbl = (addr_t *)mm->pgd[pgd];
+
+  if (p4d_tbl[p4d] == 0)
+  {
+    pte = calloc(512, sizeof(addr_t));
+    if (pte == NULL)
+      return -1;
+
+    p4d_tbl[p4d] = (addr_t)pte;
+  }
+
+  addr_t *pud_tbl = (addr_t *)p4d_tbl[p4d];
+
+  if (pud_tbl[pud] == 0)
+  {
+    pte = calloc(512, sizeof(addr_t));
+    if (pte == NULL)
+      return -1;
+
+    pud_tbl[pud] = (addr_t)pte;
+  }
+
+  addr_t *pmd_tbl = (addr_t *)pud_tbl[pud];
+
+  if (pmd_tbl[pmd] == 0)
+  {
+    pte = calloc(512, sizeof(addr_t));
+    if (pte == NULL)
+      return -1;
+
+    pmd_tbl[pmd] = (addr_t)pte;
+  }
+
+  addr_t *pt_tbl = (addr_t *)pmd_tbl[pmd];
+
+  pte = &pt_tbl[pt];
+  *pte = pte_val;
+
   //... krnl->mm->pgd
   //... krnl->mm->pt
   //pte = &krnl->mm->pt;
@@ -239,7 +397,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   pte = pte_val;
 #endif
 
-	return 0;
+  return 0;
 }
 
 /*

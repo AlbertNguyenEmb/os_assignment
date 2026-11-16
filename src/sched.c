@@ -63,7 +63,7 @@ struct pcb_t * get_mlq_proc(void) {
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 *      It worth to protect by a mechanism.
 	 * */
-	unsigned long prio;
+	unsigned long prio = 0;
 	while (prio < MAX_PRIO){
 	    if (!empty(&mlq_ready_queue[prio])){
 			if (slot[prio] > 0){
@@ -74,16 +74,20 @@ struct pcb_t * get_mlq_proc(void) {
 			prio++;
 		}
 	}
+	if (proc == NULL){
 		for (int i = 0; i < MAX_PRIO; i++){
 			mlq_ready_queue[i].size = 0;
 			slot[i] = MAX_PRIO - i;
 		}
-	while (prio < MAX_PRIO){
-	    if (!empty(&mlq_ready_queue[prio])){
-			if (slot[prio] > 0){
-				proc = dequeue(&mlq_ready_queue[prio]);
-				slot[prio]--;
-				break;
+		prio = 0;
+		
+	    while (prio < MAX_PRIO){
+	        if (!empty(&mlq_ready_queue[prio])){
+			    if (slot[prio] > 0){
+				    proc = dequeue(&mlq_ready_queue[prio]);
+				    slot[prio]--;
+				    break;
+			    }
 			}
 			prio++;
 		}

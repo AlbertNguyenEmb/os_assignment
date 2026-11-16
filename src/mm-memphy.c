@@ -51,7 +51,7 @@ int MEMPHY_seq_read(struct memphy_struct *mp, addr_t addr, BYTE *value)
    if (mp == NULL)
       return -1;
 
-   if (!mp->rdmflg)
+   if (mp->rdmflg) // Tương tự dưới
       return -1; /* Not compatible mode for sequential read */
 
    MEMPHY_mv_csr(mp, addr);
@@ -91,7 +91,7 @@ int MEMPHY_seq_write(struct memphy_struct *mp, addr_t addr, BYTE value)
    if (mp == NULL)
       return -1;
 
-   if (!mp->rdmflg)
+   if (mp->rdmflg) // fix lỗi vì nhận chung nhánh if => luôn trả về -1
       return -1; /* Not compatible mode for sequential read */
 
    MEMPHY_mv_csr(mp, addr);
@@ -163,7 +163,8 @@ int MEMPHY_get_freefp(struct memphy_struct *mp, addr_t *retfpn)
     */
    //*retfpn ..
    // cap nhat lai danh sach free frame
-
+   *retfpn = fp;
+   mp->free_fp_list = *fp->fp_next;
    /* 
     * TODO MEMPHY is iteratively used up until its exhausted
     * No garbage collector acting then it not been released
@@ -179,7 +180,13 @@ int MEMPHY_dump(struct memphy_struct *mp)
    * TODO dump memphy contnt mp->storage
    *     for tracing the memory content
    */
-
+   if (mp == NULL) return;
+   
+   for (int i = 0; i < mp->maxsz; i++) {
+      if (mp->storage[i] != 0) {
+         printf("BYTE %x: %d\n", i, mp->storage[i]);
+      }
+   }
    return 0;
 }
 
@@ -200,7 +207,8 @@ int MEMPHY_put_freefp(struct memphy_struct *mp, addr_t fpn)
  *  Init MEMPHY struct
  */
 int init_memphy(struct memphy_struct *mp, addr_t max_size, int randomflg)
-{
+{  
+   // Khởi tạo một dãy byte có độ dài maxsz
    mp->storage = (BYTE *)malloc(max_size * sizeof(BYTE));
    mp->maxsz = max_size;
    memset(mp->storage, 0, max_size * sizeof(BYTE));

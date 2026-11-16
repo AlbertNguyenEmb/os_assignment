@@ -26,7 +26,8 @@
  *
  */
 struct vm_area_struct *get_vma_by_num(struct mm_struct *mm, int vmaid)
-{
+{ 
+  // Lấy cái id đầu tiên và dịch nó tới khi nào nó bằng id và trả lại
   struct vm_area_struct *pvma = mm->mmap;
 
   if (mm->mmap == NULL)
@@ -64,13 +65,16 @@ struct vm_rg_struct *get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, ad
 {
   struct vm_rg_struct * newrg;
   /* TODO retrive current vma to obtain newrg, current comment out due to compiler redundant warning*/
-  //struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
 
-  //newrg = malloc(sizeof(struct vm_rg_struct));
+  newrg = malloc(sizeof(struct vm_rg_struct));
 
+  newrg->rg_start = cur_vma->sbrk;
+  newrg->rg_end = cur_vma->sbrk + alignedsz;
+  newrg->rg_next = NULL;
   /* TODO: update the newrg boundary
-  // newrg->rg_start = ...
-  // newrg->rg_end = ...
+  newrg->rg_start = ...
+  newrg->rg_end = ...
   */
   // struct vm_area_struct *cur_vma=....
 
@@ -110,7 +114,7 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, addr_t vmastart, a
   }
 
   while (vma != NULL)
-  {
+  { // Hỏi 1: lấy vùng hiện tại của cur ban đầu để so sánh lần lượt trên linkedlist
     if (vma != cur_area && OVERLAP(cur_area->vm_start, cur_area->vm_end, vma->vm_start, vma->vm_end))
     {
       return -1;
@@ -133,15 +137,39 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
   /* TOTO with new address scheme, the size need tobe aligned 
    *      the raw inc_sz maybe not fit pagesize
    */ 
+  struct vm_rg_struct *newrg = malloc(sizeof(struct vm_rg_struct));
+  int inc_amt = PAGING_PAGE_ALIGNSZ(inc_sz);
+  int incnumpage = inc_amt / PAGING_PAGESZ;
 
+  struct vm_rg_struct *new_area = get_vm_area_node_at_brk(caller, vmaid, inc_sz, inc_amt);
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+
+  int old_end = cur_vma->vma_end;
+  if (!newrg) {
+    cur_vma->vm_end = old_end;
+    free(new_area);
+    return -1;
+  }
   /* 
    * TODO Validate overlap of obtained region 
    *if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
    *   return -1;  //Overlap and failed allocation 
    */
+  if (validate_overlap_vm_area(caller, vmaid, new_area->rg_start, new_area->rg_end) == -1) {
+    return -1;
+  }
+  // Lay cai ham moi xin cap phat map qua pgd
+  if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage, newrg) < 0)
+  {
+    return -1; 
+  }
 
   /* TODO: Obtain the new vm area based on vmaid */
-
+  cur_vma->sbrk += inc_amt;
+  if (cur_vma->sbrk > cur_vma->vm_end)
+  {
+    cur_vma->vm_end = cur_vma->sbrk;
+  }
 
   return 0;
 }

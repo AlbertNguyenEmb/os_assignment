@@ -44,21 +44,23 @@ typedef ADDR_TYPE addr_t;
 #define FORMATX_ADDR "%08x"
 #endif
 
+// Cấu trúc quản lý bảng phân trang 
 struct pgn_t{
    addr_t pgn;
    struct pgn_t *pg_next; 
-};
+}; 
 
 /*
  *  Memory region struct
  */
+// Mấy cái memory region được quản lý bằng mmap chứa danh sách liên kết
 struct vm_rg_struct {
    int vmaid;
 
    addr_t rg_start;
    addr_t rg_end;
 
-   struct vm_rg_struct *rg_next;
+   struct vm_rg_struct *rg_next; // Nối các vùng lại thành 1 linked lisk
 };
 
 /*
@@ -69,7 +71,7 @@ struct vm_area_struct {
    addr_t vm_start;
    addr_t vm_end;
 
-   addr_t sbrk;
+   addr_t sbrk; // địa chỉ mà dùng để co giãn vùng nhớ cấp phát
 /*
  * Derived field
  * unsigned long vm_limit = vm_end - vm_start
@@ -127,7 +129,7 @@ struct mm_struct {
  * FRAME/MEM PHY struct
  */
 struct framephy_struct { 
-   addr_t fpn;
+   addr_t fpn; // Nhận bằng frame physic number
    struct framephy_struct *fp_next;
 
    /* Resereed for tracking allocated framed */
@@ -136,10 +138,13 @@ struct framephy_struct {
 
 struct memphy_struct {
    /* Basic field of data and size */
+   // Mảng byte có kích thước cố định maxsz
    BYTE *storage;
    int maxsz;
    
    /* Sequential device fields */ 
+   // rdmflg chỉ cách thức đọc và ghi của ram, bằng 1 thì đọc 1 đọc bất kỳ vị trí nào 
+   // còn bằng 0 thì sẽ đọc tuần tự theo mảng linked list;
    int rdmflg;
    int cursor;
 

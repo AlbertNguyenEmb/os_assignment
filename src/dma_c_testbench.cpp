@@ -28,7 +28,7 @@
 #include <cstdbool>
 #include <thread>
 #include <atomic>
-
+//
 // Generated DPI functions from RTL
 #include <verilated.h>
 #include <verilated_vcd_c.h>
@@ -55,19 +55,19 @@ extern "C" int dpi_rtl_dma_is_available(void);
 int dpi_dma_copy(struct pcb_t *caller, uint64_t src_offset, uint64_t dst_offset, uint64_t length) {
     void *src = NULL;
     void *dst = NULL;
-    //struct krnl_t *krnl = caller->krnl;
+    struct krnl_t *krnl = caller->krnl;// truy cập vào thành phần krnl của caller để lấy thông tin 
 
-    if (memory_bank_is_available()) {
+    if (memory_bank_is_available()) { //Nếu đã tồn tại memorybank thì thực hiện lấy src và des từ memory bank đó
         printf("dma_testbench modeo with dpi_dma_copy from memory bank\n");
         src = memory_bank_get_ptr(src_offset);
         dst = memory_bank_get_ptr(dst_offset);
-    } else {
+    } else {//k tồn tại memory bank thì lấy từ memory của OS( trong memphy)
         /*
          * TODO: map system OS memory address
          */
-        //printf("dma_testbench modeo with OS memory address\n");
-        //src =  krnl->...
-        //dst =  krnl->...
+        printf("dma_testbench modeo with OS memory address\n"); // đã làm phần này
+            src = krnl->mram->storage + src_offset;
+            dst = krnl->mram->storage + dst_offset;
     }
 
     printf("dpi_dma_copy: src=%llu, dst=%llu, len=%llu\n", 
@@ -138,15 +138,16 @@ extern "C" int do_dma(struct pcb_t *caller,uint64_t source, uint64_t destination
     int test_errors = 0;
 
     /* Perform DMA copy using DPI with provided caller and parameters */
-    test_errors += dpi_dma_copy(caller, source, destination, length);
+    test_errors += dpi_dma_copy(caller, source, destination, length);// test lỗi, nếu càng âm thì số lỗi càng âm
 
     /*
      * TODO: This asynchronous implementation of DMA
      *        DMA completion callback is not yet implemented in this testbench
      */
     // Install callback handler
-    //dma_done_callback();  // Call the callback to signal DMA completion
-
+    if(test_errors ==0){ //nếu test_error không lỗi thì dma complete
+    dma_done_callback();  // Call the callback to signal DMA completion
+    }
     return test_errors;
 }
 

@@ -23,7 +23,7 @@
 typedef struct {
     uint8_t* data;
     size_t size;
-    int initialized;
+    int initialized;// để báo hiệu là tại nơi này đã có 1 memory bank được khởi tạo hay chưa
 } memory_bank_t_struct;
 
 // Array of memory banks
@@ -41,17 +41,17 @@ memory_bank_t memory_bank_init(size_t size_bytes) {
         }
     }
 
-    if (free_slot == -1) {
+    if (free_slot == -1) { //check cái g_banks thứ i có bị >8 g_bank  hay khoong
         printf("Maximum number of memory banks (%d) reached\n", MAX_MEMORY_BANKS);
         return MEMORY_BANK_INVALID;
     }
 
-    if (size_bytes == 0) {
+    if (size_bytes == 0) { //size bytes hiện tại muốn gửi
         printf("Invalid bank size: 0\n");
         return MEMORY_BANK_INVALID;
     }
 
-    uint8_t* data = (uint8_t*)malloc(size_bytes);
+    uint8_t* data = (uint8_t*)malloc(size_bytes); // cấp phát dung lượng cho data trong g_bank
     if (!data) {
         printf("Failed to allocate memory bank of %zu bytes\n", size_bytes);
         return MEMORY_BANK_INVALID;
@@ -120,9 +120,9 @@ int dpi_bank_read32_legacy(long long offset) {
 
     void* src = memory_bank_get_ptr((size_t)offset);
 
-    //printf("MEM READ RESULT: Address=%p, DPI return=%x, Readback=%x, Match=%d\n",
-    //        (void*)((size_t)offset), *(unsigned int*)data, *(unsigned int*)data, 1);
-    //fflush(stdout);
+    printf("MEM READ RESULT: Address=%p, DPI return=%x, Readback=%x, Match=%d\n",
+            (void*)((size_t)offset), *(unsigned int*)data, *(unsigned int*)data, 1);
+    fflush(stdout);
     
     memcpy(&data, src, 4);
 
@@ -134,10 +134,10 @@ int dpi_bank_read32_legacy(long long offset) {
  */
 int dpi_bank_write32_legacy(long long offset, int value) {
     void* dst = memory_bank_get_ptr((size_t)offset);
-    //printf("MEM WRITE RESULT: Address=%p, Write data=%x, Write rc=0, Readback=%x, Match=1\n",
-    //        (void*)((size_t)offset), *(unsigned int*)&value, *(unsigned int*)&value);
+    printf("MEM WRITE RESULT: Address=%p, Write data=%x, Write rc=0, Readback=%x, Match=1\n",
+            (void*)((size_t)offset), *(unsigned int*)&value, *(unsigned int*)&value);
     memcpy(dst,  &value, 4);
-    //fflush(stdout);
+    fflush(stdout);
        
     return 0;
 }

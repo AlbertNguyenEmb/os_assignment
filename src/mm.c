@@ -62,17 +62,24 @@ int init_pte(addr_t *pte,
 
 /*
  * get_pd_from_pagenum - Parse address to 5 page directory level
- * @pgn   : pagenumer
- * @pgd   : page global directory
- * @p4d   : page level directory
- * @pud   : page upper directory
- * @pmd   : page middle directory
+ * @pgn   : pagenumer 
+ * @pgd   : page global directory 56-48
+ * @p4d   : page level directory  47-39
+ * @pud   : page upper directory  38-30
+ * @pmd   : page middle directory 29-21
  * @pt    : page table 
+ * offset : 11-0
  */
 int get_pd_from_address(addr_t addr, addr_t* pgd, addr_t* p4d, addr_t* pud, addr_t* pmd, addr_t* pt)
-{
-  printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
-  return 0;
+{ 
+  // Dịch 12 bit để bit bit offset và and để bỏ các bit còn lại
+  // => Trích xuất 12 bit của bảng
+  *pgd = (addr >> 12) & 0x1FF;
+  *p4d = (addr >> 21) & 0x1FF;
+  *pud = (addr >> 30) & 0x1FF;
+  *pmd = (addr >> 39) & 0x1FF;
+  *pt  = (addr >> 48) & 0x1FF;
+  return 0; 
 }
 
 /*
@@ -86,6 +93,7 @@ int get_pd_from_address(addr_t addr, addr_t* pgd, addr_t* p4d, addr_t* pud, addr
  */
 int get_pd_from_pagenum(addr_t pgn, addr_t* pgd, addr_t* p4d, addr_t* pud, addr_t* pmd, addr_t* pt)
 {
+
   printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
   return 0;
 }
@@ -224,7 +232,8 @@ int __swap_cp_page(struct memphy_struct *mpsrc, addr_t srcfpn,
  * @caller: mm owner
  */
 int init_mm(struct mm_struct *mm, struct pcb_t *caller)
-{
+{ 
+
   printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
   return 0;
 }

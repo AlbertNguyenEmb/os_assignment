@@ -73,6 +73,7 @@ struct pcb_t * get_mlq_proc(void) {
 			}
 			prio++;
 		}
+	}
 		for (int i = 0; i < MAX_PRIO; i++){
 			mlq_ready_queue[i].size = 0;
 			slot[i] = MAX_PRIO - i;
@@ -84,8 +85,8 @@ struct pcb_t * get_mlq_proc(void) {
 				slot[prio]--;
 				break;
 			}
+			prio++;
 		}
-		prio++;
 	}
 	if (proc != NULL)
 		enqueue(&running_list, proc);
